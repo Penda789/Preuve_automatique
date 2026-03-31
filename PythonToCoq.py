@@ -1,67 +1,27 @@
-import pycoq.serapi as serapi
-from pycoq.common import LocalKernelConfig as lkc
-from pycoq.kernel import LocalKernel as Lc
-import asyncio, re
+#!/usr/bin/env python3 
+"""d'ailleurs ça s'appele un shebang, pour dire à l'os on utilise quel interpreteur"""
+"""BUT: Executer le code automatiquement en COQ via ce script"""
+import subprocess
 
-# !! ADAPTE ce chemin avec le résultat de ta commande find
-GRAPH_THEORY_PATH = "/home/psow/.opam/pycoq_env/lib/coq/user-contrib/GraphTheory"
+def toCoq():
+    #intialisation
+    proc=subprocess.Popen( #creation d'un sous processus qui s'occupe de COQ
+        ["sercomp","--printer=human", "temp.v"],
+        stdout=subprocess.PIPE, #lis dans le processus 
+        stderr=subprocess.PIPE, # pour les erreurs
+        text=True # pour avoir des str et pas des bites
+    )
+    #execution
+    stdout,stderr= proc.communicate(timeout=30)
 
-async def extraction():
-    kernel = None
-    try:
-        lemmes = []
+    #recherche si jamais ya une erreur
+    if "CoqExn" in stdout or proc.returncode != 0:
+        return False, stdout + stderr
 
-        coq_cfg = lkc(
-            command=[
-                "/home/psow/.opam/pycoq_env/bin/sertop",
-                f"--load-path={GRAPH_THEORY_PATH},GraphTheory"
-            ],
-            pwd="/home/psow"
-        )
+    return True, ""
 
-        kernel = Lc(coq_cfg)
-        await kernel.start()
-        s = serapi.CoqSerapi(kernel)
-
-        # execute() renvoie (sid_debut, sid_fin, [CoqExn], [msgs])
-        sid_start, sid_end, exns, msgs = await s.execute('From GraphTheory Require Import digraph.')
-        print(f"digraph -> sid={sid_end}, exns={exns}")
-
-        sid_start, sid_end, exns, msgs = await s.execute('From GraphTheory Require Import ugraph.')
-        sid_start, sid_end, exns, msgs = await s.execute('Require Import Vertex.')
-        sid_start, sid_end, exns, msgs = await s.execute('Require Import Edge.')
-        sid_start, sid_end, exns, msgs = await s.execute('From GraphTheory Require Import edone.')
-
-        # Search . -- les résultats reviennent dans msgs (4e élément)
-        sid_start, sid_end, exns, msgs = await s.execute('Search _.')
-        print(f"Search -> exns={exns}, msgs preview={str(msgs)[:300]}")
-
-        # Parse les résultats
-        for msg in msgs:
-            txt = str(msg)
-            for line in txt.splitlines():
-                m = re.match(r"^([A-Za-z0-9_'.]+)\s*:", line)
-                if m:
-                    lemmes.append(line.strip())
-
-        print(f"\n{len(lemmes)} lemmes trouvés.")
-        for j in lemmes[:10]:  # affiche les 10 premiers
-            print("  ", j)
-
-        return lemmes
-
-    finally:
-        if kernel is not None:
-            for method_name in ['stop', 'shutdown', 'terminate', 'kill']:
-                method = getattr(kernel, method_name, None)
-                if callable(method):
-                    try:
-                        r = method()
-                        if asyncio.iscoroutine(r):
-                            await r
-                        break
-                    except Exception:
-                        continue
-
-if __name__ == "__main__":
-    asyncio.run(extraction())
+success, message = toCoq()
+if success:
+    print("✅ Proof verified!")
+else:
+    print("❌ Coq error:\n", message)
