@@ -5,14 +5,16 @@ import subprocess
 import os
 from mistralai.client import Mistral
 import re
+from PythonToCoq import toCoq
 
-def trad_enonce():
+def trad_enonce(texte_fr=None):
     #cle api "0Lrp5o1vP2xjfXv7hh7s5zkAdd3PWNxM"
     #pTekYKZfndlGAm2mHt8USDw5rh50YBei
 
     tentative = 0
     max_tentatives=4
-    texte_fr=input("Entrez l'ennoncé à prouver:")
+    if texte_fr is None:
+        texte_fr=input("Entrez l'ennoncé à prouver:")
 
     key = os.getenv("MISTRAL_API_KEY")  
     if not key:
@@ -38,27 +40,43 @@ def trad_enonce():
                 texte_fr = f"Erreur: {erreur}\nRéessaie de traduire: {texte_fr}"
                 continue  # passe à la tentative suivante
 
-            """#pour qu'il y ai que du COQ sinon met la rep de mistral aussi dedans et dcp compilation echoue
+            #pour qu'il y ai que du COQ sinon met la rep de mistral aussi dedans et dcp compilation echoue
             match = re.search(r"```coq\n(.*?)```", code_coq, re.DOTALL)
             if match:
-                code_coq = match.group(1)"""
+                code_coq = match.group(1)
             
             # Écriture fichier temp
             with open("temp.v", "w") as f:
                 f.write(code_coq)
             
             # Compilation Coq
-            result = subprocess.run(["coqc", "temp.v"], capture_output=True, text=True, timeout=30)
-            
-            if result.returncode == 0:
+            success, message = toCoq()
+            if success:
                 return "Prouvé !"
             else:
-                erreur = result.stderr
+                erreur = message
                 texte_fr = f"Erreur Coq: {erreur}\nCorrige ce code Coq: {code_coq}"
         
-    return f"Échec après {max_tentatives} tentatives"
+    return f"Échec après {max_tentatives} tentatives, voici l'erreur produite {erreur}"
+
+from benchmark_graphes import (
+    BENCHMARK_FACILE,
+    BENCHMARK_INTERMEDIAIRE,
+    BENCHMARK_AVANCE,
+)
+
+def run_benchmark(enonces, nom="benchmark"):
+    resultats = []
+    for i, enonce in enumerate(enonces, 1):
+        print(f"\n[{i}/{len(enonces)}] {enonce}")
+        res = trad_enonce(texte_fr=enonce)
+        print(f"  => {res}")
+        resultats.append((enonce, res))
+    succes = sum(1 for _, r in resultats if r == "Prouvé !")
+    print(f"\n=== {nom} : {succes}/{len(enonces)} réussis ===")
+    return resultats
 
 if __name__ == "__main__":
-    enonce = "Prouve que pour tout n nombre naturel, n + 0 = n."
-    trad_enonce()
-
+    run_benchmark(BENCHMARK_FACILE, "Facile")
+    run_benchmark(BENCHMARK_INTERMEDIAIRE, "Intermediaire")
+    run_benchmark(BENCHMARK_AVANCE,        "Avance")
