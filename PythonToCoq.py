@@ -5,11 +5,19 @@ import subprocess
 
 def toCoq():
     #intialisation
-    proc=subprocess.Popen( #creation d'un sous processus qui s'occupe de COQ
-        ["sercomp","--printer=human", "temp.v"],
-        stdout=subprocess.PIPE, #lis dans le processus 
-        stderr=subprocess.PIPE, # pour les erreurs
-        text=True # pour avoir des str et pas des bites
+    import os
+
+    proc = subprocess.Popen(
+        [
+            "sudo","docker", "run", "--rm", 
+            "-v", f"{os.getcwd()}:/workspace",  # Monte le dossier actuel dans le conteneur
+            "-w", "/workspace",                  # Définit /workspace comme dossier de travail
+            "mon_image_coq",           # <--- REMPLACE CECI par le nom de l'image (ex: coqorg/coq)
+            "sercomp", "--printer=human", "temp.v"
+        ],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True
     )
     #execution
     stdout,stderr= proc.communicate(timeout=30)
