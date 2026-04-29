@@ -1,35 +1,32 @@
-#!/usr/bin/env python3 
-"""d'ailleurs ça s'appele un shebang, pour dire à l'os on utilise quel interpreteur"""
-"""BUT: Executer le code automatiquement en COQ via ce script"""
+#!/usr/bin/env python3
 import subprocess
+import os
 
 def toCoq():
-    #intialisation
-    import os
-
     proc = subprocess.Popen(
         [
-            "sudo","docker", "run", "--rm", 
-            "-v", f"{os.getcwd()}:/workspace",  # Monte le dossier actuel dans le conteneur
-            "-w", "/workspace",                  # Définit /workspace comme dossier de travail
-            "mon_image_coq",           # <--- REMPLACE CECI par le nom de l'image (ex: coqorg/coq)
-            "sercomp", "--printer=human", "temp.v"
+            "docker", "run", "--rm",
+            "-v", f"{os.getcwd()}:/workspace",
+            "-w", "/workspace",
+            "coqorg/coq:8.20.1",   # ← image officielle
+            "coqc", "temp.v"        # ← coqc, pas sercomp
         ],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True
     )
-    #execution
-    stdout,stderr= proc.communicate(timeout=30)
 
-    #recherche si jamais ya une erreur
-    if "CoqExn" in stdout or proc.returncode != 0:
+    stdout, stderr = proc.communicate(timeout=60)
+
+    if proc.returncode != 0:
         return False, stdout + stderr
 
     return True, ""
 
-success, message = toCoq()
-if success:
-    print("✅ Proof verified!")
-else:
-    print("❌ Coq error:\n", message)
+
+if __name__ == "__main__":
+    success, message = toCoq()
+    if success:
+        print("✅ Proof verified!")
+    else:
+        print("❌ Coq error:\n", message)

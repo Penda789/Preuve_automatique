@@ -29,7 +29,7 @@ def trad_enonce(texte_fr=None):
             response = mistral.chat.complete(
                 model="mistral-small-latest",
                 messages=[
-                    {"role": "user", "content": f"Traduis cet énoncé en langage Coq : {texte_fr}, ne me donne pas d'indication. Contente toi uniquement de produire en coq"}
+                    {"role":"system", "content":"Tu es un expert en Coq. Traduis l'énoncé en théorème Coq  {texte_fr} et prouve-le. Règles strictes :1. N'utilise QUE la bibliothèque standard de Coq. N'importe jamais mathcomp, ssreflect, Omega, ou Z. 2. Pour les graphes, utilise des types simples (ex: `Variable V : Type. Variable E : V -> V -> Prop.`).3. Ne fais aucune supposition sur des lemmes externes non standards.4. Réponds UNIQUEMENT avec le bloc de coq """}
                 ]
             )
 
